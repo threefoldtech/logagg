@@ -33,16 +33,6 @@ async fn log_handle(
     stream: web::Payload,
 ) -> Result<HttpResponse, Error> {
     let resp = ws::start(LogaggWs {}, &req, stream);
-    let filename = format!("{}-{}", path.0, path.1);
-    let file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(filename)
-        .await?;
-
-
-    // file.write_all(&stream.into()).await?;
-
     resp
 }
 
