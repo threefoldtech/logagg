@@ -1,19 +1,29 @@
-extern crate yaml_rust;
-use crate::{cfg::Cfg, cmd::CmdParser};
+use crate::cfg::Cfg;
 use structopt::StructOpt;
-use tokio::{fs::OpenOptions, io::AsyncWriteExt};
+use std::path::PathBuf;
 
 mod cfg;
-mod cmd;
 mod output;
 mod server;
 
 fn main() {
-    let cmd = CmdParser::from_args();
+    let cmd = CmdArgs::from_args();
     let cfg = Cfg::new(cmd.cfg).unwrap();
 
     let rt = actix_rt::Runtime::new().unwrap();
     rt.block_on(async {
         let _ = server::server(cfg).await.unwrap();
     });
+}
+
+#[derive(StructOpt, Debug)]
+#[structopt(name = "logagg")]
+pub struct CmdArgs {
+    /// Activate detach mode
+    #[structopt(short, long)]
+    pub detach: bool,
+
+    /// Config file
+    #[structopt(short, long, parse(from_os_str))]
+    pub cfg: PathBuf,
 }

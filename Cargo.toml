@@ -7,10 +7,11 @@ edition = "2021"
 
 [dependencies]
 structopt = "0.3.26"
-yaml-rust = "0.4.5"
 anyhow = "1.0.56"
 actix = "0.13.0"
 actix-web = "4.0.1"
 actix-web-actors = "4.1.0"
 actix-rt = "2.7.0"
 tokio = { version = "1.17.0", features = ["full"] }
+serde = { version = "1.0.136", features = ["derive"] }
+serde_yaml = "0.8.23"

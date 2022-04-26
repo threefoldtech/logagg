@@ -17,7 +17,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for LogaggWs {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
-            Ok(ws::Message::Text(text)) => ctx.text(text),
+            Ok(ws::Message::Text(text)) => {
+                ctx.text(text)
+            },
             Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
             _ => (),
         }
@@ -31,16 +33,6 @@ async fn log_handle(
     stream: web::Payload,
 ) -> Result<HttpResponse, Error> {
     let resp = ws::start(LogaggWs {}, &req, stream);
-    let filename = format!("{}-{}", path.0, path.1);
-    let file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(filename)
-        .await?;
-
-
-    // file.write_all(&stream.into()).await?;
-
     resp
 }
 
