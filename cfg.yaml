@@ -2,3 +2,5 @@ listen: 127.0.0.1:80
 output:
   - type: file
     dir: /tmp/thelogs/ 
+  - type: file2
+    dir: /tmp/thelogs/ 
