@@ -1,6 +1,6 @@
-listen: 127.0.0.1:80
+listen: 127.0.0.1:8080
 output:
-  - type: file
+  - type: File
     dir: /tmp/thelogs/ 
-  - type: file2
+  - type: Xyz
     dir: /tmp/thelogs/ 

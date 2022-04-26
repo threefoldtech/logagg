@@ -1,12 +1,13 @@
 use crate::cfg::Cfg;
-use structopt::StructOpt;
 use std::path::PathBuf;
+use structopt::StructOpt;
 
 mod cfg;
 mod output;
 mod server;
 
 fn main() {
+    simple_logger::init().unwrap();
     let cmd = CmdArgs::from_args();
     let cfg = Cfg::new(cmd.cfg).unwrap();
 
@@ -27,3 +28,4 @@ pub struct CmdArgs {
     #[structopt(short, long, parse(from_os_str))]
     pub cfg: PathBuf,
 }
+
