@@ -67,16 +67,14 @@ struct Drivers {
 
 async fn log_handle(
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(String,)>,
     data: web::Data<Arc<Drivers>>,
     stream: web::Payload,
 ) -> Result<HttpResponse, Error> {
-    //todo: add validation on input to not give malicious inputs
-    let name = format!("{}-{}", path.0, path.1);
     let mut outputs = vec![];
 
     for driver in &data.drivers {
-        match driver.open(&name).await {
+        match driver.open(&path.0).await {
             Ok(output) => {
                 outputs.push(output);
             }
@@ -104,7 +102,7 @@ pub async fn server(cfg: Cfg) -> Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(Arc::clone(&drivers)))
-            .route("/logs/{contract}/{name}", web::get().to(log_handle))
+            .route("/logs/{name}", web::get().to(log_handle))
     })
     .bind(addr)?
     .run()
