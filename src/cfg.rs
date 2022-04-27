@@ -1,7 +1,11 @@
-use crate::output::Output;
 use anyhow::{Ok, Result};
-use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+use std::{fs::File, path::PathBuf};
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct Output {
+    pub kind: String,
+    pub config: String,
+}
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Cfg {
@@ -11,7 +15,8 @@ pub struct Cfg {
 
 impl Cfg {
     pub fn new(cfg_path: PathBuf) -> Result<Self> {
-        let yaml_str = std::fs::read_to_string(cfg_path)?;
-        Ok(serde_yaml::from_str(&yaml_str)?)
+        let file = File::open(cfg_path)?;
+        let yml: Cfg = serde_yaml::from_reader(&file)?;
+        Ok(yml)
     }
 }
