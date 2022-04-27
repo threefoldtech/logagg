@@ -85,8 +85,7 @@ async fn log_handle(
         };
     }
 
-    let resp = ws::start(LogaggWs::new(outputs), &req, stream);
-    resp
+    ws::start(LogaggWs::new(outputs), &req, stream)
 }
 
 pub async fn server(cfg: Cfg) -> Result<()> {

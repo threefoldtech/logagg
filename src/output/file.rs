@@ -13,7 +13,7 @@ impl FileDriver {
         let dir = dir.into();
         std::fs::create_dir_all(&dir).context("failed to create output directory")?;
 
-        Ok(FileDriver { dir: dir })
+        Ok(FileDriver { dir })
     }
 }
 
@@ -21,7 +21,7 @@ struct DirOutput(String, File);
 
 impl Output for DirOutput {
     fn write(&mut self, b: &[u8]) -> Result<()> {
-        self.1.write(b)?;
+        let _ = self.1.write(b)?;
         Ok(())
     }
 
