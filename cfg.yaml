@@ -1,6 +1,4 @@
 listen: 127.0.0.1:8080
 output:
-  - type: File
-    dir: /tmp/thelogs/ 
-  - type: Xyz
-    dir: /tmp/thelogs/ 
+  - kind: File
+    config: /tmp/logs/

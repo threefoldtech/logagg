@@ -1,17 +1,25 @@
+use crate::cfg::Cfg;
+use crate::output;
+use crate::output::{Output, OutputDriver};
 use actix::{Actor, StreamHandler};
-use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
+use actix_web::web::Buf;
+use actix_web::{error, web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_web_actors::ws;
+use anyhow::{Context, Result};
 use flate2::read::GzDecoder;
 use std::io::Read;
-
-use crate::cfg::Cfg;
+use std::sync::Arc;
 
 /// Define HTTP actor
 struct LogaggWs {
-    pub data: web::Data<Cfg>,
-    pub path: web::Path<(String, String)>,
+    outputs: Vec<Box<dyn Output>>,
 }
 
+impl LogaggWs {
+    pub fn new(outputs: Vec<Box<dyn Output>>) -> Self {
+        LogaggWs { outputs }
+    }
+}
 impl Actor for LogaggWs {
     type Context = ws::WebsocketContext<Self>;
 }
@@ -19,27 +27,33 @@ impl Actor for LogaggWs {
 /// Handler for ws::Message message
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for LogaggWs {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-
-        let filename = format!("{}-{}", self.path.0, self.path.1);
-
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
             Ok(ws::Message::Text(text)) => {
-                for op in &self.data.output {
-                    let res = op.write(&filename, text.as_bytes());
-                    if let Err(err) = res { log::warn!("{:?}", err) }
+                for op in self.outputs.iter_mut() {
+                    match op.write(text.as_bytes()) {
+                        Ok(_) => (),
+                        Err(err) => {
+                            log::warn!("failed to write text to output {}: {}", op.id(), err);
+                        }
+                    }
                 }
             }
             Ok(ws::Message::Binary(bin)) => {
-                let data: Result<Vec<_>, _> = bin.bytes().collect();
-                let data = data.unwrap();
-                let mut dec = GzDecoder::new(&data[..]);
-                let mut buf = String::new();
-                dec.read_to_string(&mut buf).unwrap();
-                
-                for op in &self.data.output {
-                    let res = op.write(&filename, buf.as_bytes());
-                    if let Err(err) = res { log::warn!("{:?}", err) }
+                let mut dec = GzDecoder::new(bin.reader());
+                let mut buffer = Vec::new();
+                if let Err(err) = dec.read_to_end(&mut buffer) {
+                    log::error!("failed to decode message: {}", err);
+                    return;
+                }
+
+                for op in self.outputs.iter_mut() {
+                    match op.write(&buffer) {
+                        Ok(_) => (),
+                        Err(err) => {
+                            log::warn!("failed to write text to output {}: {}", op.id(), err);
+                        }
+                    }
                 }
             }
             _ => (),
@@ -47,24 +61,54 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for LogaggWs {
     }
 }
 
+struct Drivers {
+    drivers: Vec<Box<dyn OutputDriver>>,
+}
+
 async fn log_handle(
     req: HttpRequest,
     path: web::Path<(String, String)>,
-    data: web::Data<Cfg>,
+    data: web::Data<Arc<Drivers>>,
     stream: web::Payload,
 ) -> Result<HttpResponse, Error> {
-    let resp = ws::start(LogaggWs { data, path }, &req, stream);
+    //todo: add validation on input to not give malicious inputs
+    let name = format!("{}-{}", path.0, path.1);
+    let mut outputs = vec![];
+
+    for driver in &data.drivers {
+        match driver.open(&name).await {
+            Ok(output) => {
+                outputs.push(output);
+            }
+            Err(err) => {
+                log::error!("failed to open output driver {}: {}", driver.id(), err);
+                return Err(error::ErrorInternalServerError(err));
+            }
+        };
+    }
+
+    let resp = ws::start(LogaggWs::new(outputs), &req, stream);
     resp
 }
 
-pub async fn server(cfg: Cfg) -> std::io::Result<()> {
+pub async fn server(cfg: Cfg) -> Result<()> {
     let addr = cfg.listen.clone();
+    let mut drivers = vec![];
+    for out in cfg.output.iter() {
+        let driver =
+            output::driver(&out.kind, &out.config).context("failed to initialize output driver")?;
+        drivers.push(driver);
+    }
+
+    let drivers = Arc::new(Drivers { drivers });
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(cfg.clone()))
+            .app_data(web::Data::new(Arc::clone(&drivers)))
             .route("/logs/{contract}/{name}", web::get().to(log_handle))
     })
     .bind(addr)?
     .run()
-    .await
+    .await?;
+
+    Ok(())
 }
