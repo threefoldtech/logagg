@@ -15,6 +15,21 @@ output:
     config: ...
 ```
 
+## Types of received message
+
+- text for not compressed message
+- binary for gzip compressed message
+
+## Url form
+
+send messages to the following url with this form
+
+
+`ws://<listen-address>/logs/<name>`
+
+- `listen-address` is the one written into the `<config>.yaml`.
+- `name` is the name of the log file i.e. text file.
+
 ## Usage
 ```
 logagg --cfg /path/to/<config>.yaml
